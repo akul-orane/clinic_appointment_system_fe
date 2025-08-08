@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FaChartBar, FaUser } from "react-icons/fa";
+import { FaChartBar, FaUser, FaBars, FaChevronLeft } from "react-icons/fa";
 import { useAuth } from "../layouts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
@@ -9,6 +9,7 @@ const Sidebar = () => {
   const [organizations, setOrganizations] = useState([]);
   const [selectedOrgId, setSelectedOrgId] = useState("");
   const [tabs, setTabs] = useState([]);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     const storedOrgs = JSON.parse(
@@ -25,7 +26,6 @@ const Sidebar = () => {
         (org) => org.organizationId === selected
       );
       const roleTabs = selectedOrg?.roles?.[0]?.tabs || [];
-
       const validTabs = roleTabs.filter((tab) => tab.is_valid);
       setTabs(validTabs);
     }
@@ -45,47 +45,78 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="w-full md:w-64 bg-white p-6 shadow-2xl border-r border-gray-200 animate-fadeInUp overflow-auto">
-      <h2 className="text-3xl font-extrabold text-blue-600 mb-10 tracking-widest uppercase">
-        Arogi
-      </h2>
-
-      <div className="mb-6">
-        <label className="text-gray-600 text-sm block mb-1">
-          Select Organization
-        </label>
-        <select
-          value={selectedOrgId}
-          onChange={handleOrgChange}
-          className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+    <aside
+      className={`h-screen bg-gradient-to-b from-blue-700 to-blue-900 shadow-xl border-r border-gray-200 text-white transition-all duration-300 flex flex-col ${
+        collapsed ? "w-20" : "w-64"
+      }`}
+    >
+      {/* Header with Collapse Button */}
+      <div className="flex items-center justify-between p-4 border-b border-blue-500">
+        {!collapsed && (
+          <h2 className="text-2xl font-extrabold tracking-widest uppercase">
+            Arogi
+          </h2>
+        )}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="p-2 rounded-full bg-white text-blue-700 hover:bg-blue-200 transition"
         >
-          {organizations.map((org) => (
-            <option key={org.organizationId} value={org.organizationId}>
-              {org.organizationName || org.shortorgname}
-            </option>
-          ))}
-        </select>
+          {collapsed ? <FaBars /> : <FaChevronLeft />}
+        </button>
       </div>
 
-      <ul className="space-y-6 text-lg">
-        {tabs.map((tab) => (
-          <li
-            key={tab.tab_id}
-            onClick={() => navigate(`${tab.tab_path}`)}
-            className="flex items-center text-blue-600 font-bold hover:text-blue-800 transition duration-300 cursor-pointer"
-          >
-            <FaChartBar className="mr-3" />
-            {tab.tab_name}
-          </li>
-        ))}
+      {/* Scrollable section */}
+      <div className="flex-1 overflow-y-auto">
+        {!collapsed && (
+          <div className="p-4 border-b border-blue-500">
+            <label className="text-gray-200 text-sm block mb-1">
+              Select Organization
+            </label>
+            <select
+              value={selectedOrgId}
+              onChange={handleOrgChange}
+              className="w-full p-2 rounded bg-white text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            >
+              {organizations.map((org) => (
+                <option key={org.organizationId} value={org.organizationId}>
+                  {org.organizationName || org.shortorgname}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
-        <li
-          className="flex items-center text-gray-600 hover:text-blue-500 transition duration-300 cursor-pointer"
+        {/* Navigation Tabs */}
+        <ul className="p-4 space-y-3">
+          {tabs.map((tab) => (
+            <li
+              key={tab.tab_id}
+              onClick={() => navigate(`${tab.tab_path}`)}
+              className="flex items-center gap-3 p-2 rounded-lg hover:bg-blue-500 hover:shadow-md transition-all duration-300 cursor-pointer"
+            >
+              <span className="p-2 rounded-full bg-white text-blue-700">
+                <FaChartBar />
+              </span>
+              {!collapsed && (
+                <span className="font-semibold">{tab.tab_name}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Logout fixed at bottom */}
+      <div className="p-4 border-t border-blue-500 bg-gradient-to-b from-blue-800 to-blue-900">
+        <div
           onClick={logout}
+          className="flex items-center gap-3 p-2 rounded-lg hover:bg-blue-500 hover:shadow-md transition-all duration-300 cursor-pointer"
         >
-          <FaUser className="mr-3" /> Logout
-        </li>
-      </ul>
+          <span className="p-2 rounded-full bg-white text-red-600">
+            <FaUser />
+          </span>
+          {!collapsed && <span className="font-semibold">Logout</span>}
+        </div>
+      </div>
     </aside>
   );
 };

@@ -18,6 +18,9 @@ import { useAuth } from "./layouts/AuthContext";
 import DashboardSAPage from "./pages/SuperAdmin/DashboardSApage";
 import OrganisationListing from "./pages/SuperAdmin/OrganisationListing";
 import ResourceManagement from "./pages/ResourceManagement";
+import ServicesManagement from "./pages/Services";
+import AppointmentPage from "./pages/AppointmentPage";
+import ForgotPassword from "./pages/ForgotPassword";
 
 import "../src/App.css";
 import { message } from "antd";
@@ -54,7 +57,9 @@ function App() {
           <Route path="/doctorManagement" element={<DoctorManagement />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/resourceManagement" element={<ResourceManagement />} />
-          {/* <Route path="/reports" element={<div>Reports Page</div>} /> */}
+          <Route path="/servicesManagement" element={<ServicesManagement />} />
+          <Route path="/appointments" element={<AppointmentPage />} />
+
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Route>
       ) : (
@@ -62,6 +67,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/superAdmin/login" element={<Login />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgetpassword" element={<ForgotPassword />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Route>
       )}

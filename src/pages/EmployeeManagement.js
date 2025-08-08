@@ -33,7 +33,10 @@ const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsgNew, setSuccessMsgNew] = useState("");
+  const [errorMsgNew, setErrorMsgNew] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rowLoadingStates, setRowLoadingStates] = useState({});
 
   const [roles, setRoles] = useState([]);
   const orgId = localStorage.getItem("selectedOrgId");
@@ -53,7 +56,7 @@ const UserManagement = () => {
             },
           }
         );
-        console.log(response.data.response);
+        console.log("Role Response>>> ,", response.data.response);
         setRoles(response.data.response); // assumes response is an array like [{ id: "admin", name: "Admin" }]
       } catch (error) {
         console.error("Failed to fetch roles:", error);
@@ -170,6 +173,35 @@ const UserManagement = () => {
     }
   };
 
+  const handleRoleChange = async (userId, newRoleId) => {
+    setErrorMsgNew("");
+    setSuccessMsgNew("");
+    setRowLoadingStates((prev) => ({ ...prev, [userId]: true }));
+    try {
+      await axios.put(
+        `${BACKEND_URL}/clientAdmin/userMgmt/updateUserRole`,
+        {
+          userId, // WHO to update
+          newRoleId, // WHAT role to assign
+          orgId: orgId, // Optional, if your backend requires it
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      await fetchEmployeeDetails(); // refresh UI
+      setSuccessMsgNew("Role Updated");
+    } catch (error) {
+      console.error("Role update failed:", error);
+      setErrorMsgNew("Failed to update role");
+    } finally {
+      setRowLoadingStates((prev) => ({ ...prev, [userId]: false }));
+    }
+  };
+
   const fetchEmployeeDetails = async () => {
     try {
       const orgId = localStorage.getItem("selectedOrgId");
@@ -182,7 +214,7 @@ const UserManagement = () => {
           },
         }
       );
-      console.log(response.data.response);
+      console.log("Employee resposne>>>", response.data.response);
       if (response.status === 200) {
         setUsers(response.data.response || []);
       } else {
@@ -205,6 +237,8 @@ const UserManagement = () => {
           defaultActiveKey="1"
           onChange={(activeKey) => {
             if (activeKey === "2") {
+              setErrorMsgNew("");
+              setSuccessMsgNew("");
               fetchEmployeeDetails();
             }
             if (activeKey == "1") {
@@ -358,6 +392,16 @@ const UserManagement = () => {
           </TabPane>
 
           <TabPane tab="Employee Listing" key="2">
+            {errorMsgNew && (
+              <Alert sx={{ mb: 2, mt: 2 }} severity="error">
+                {errorMsgNew}
+              </Alert>
+            )}
+            {successMsgNew && (
+              <Alert sx={{ mb: 2, mt: 2 }} severity="success">
+                {successMsgNew}
+              </Alert>
+            )}
             <div className="bg-white border border-gray-200 rounded-lg overflow-hidden mt-4">
               <table className="table-fixed w-full text-sm text-left">
                 <thead className="bg-blue-100 text-blue-900 font-semibold">
@@ -366,8 +410,8 @@ const UserManagement = () => {
                     <th className="w-40 px-4 py-2 border-b">Name</th>
                     <th className="w-60 px-4 py-2 border-b">Email</th>
                     <th className="w-36 px-4 py-2 border-b">Phone</th>
-                    <th className="w-32 px-4 py-2 border-b">Role</th>
                     <th className="w-48 px-4 py-2 border-b">Login ID</th>
+                    <th className="w-48 px-4 py-2 border-b">Change Role</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -378,11 +422,32 @@ const UserManagement = () => {
                       <td className="px-4 py-2">{user.email}</td>
                       <td className="px-4 py-2">{user.phone}</td>
                       <td className="px-4 py-2">
-                        {user.users?.user_organizations?.[0]?.user_roles?.[0]
-                          ?.roles?.name || "-"}
+                        {user.users?.login_id || "-"}
                       </td>
                       <td className="px-4 py-2">
-                        {user.users?.login_id || "-"}
+                        <TextField
+                          select
+                          size="small"
+                          value={
+                            user.users?.user_organizations?.[0]?.user_roles?.[0]
+                              ?.roles?.id || ""
+                          }
+                          onChange={(e) => {
+                            handleRoleChange(user.userid, e.target.value);
+                            console.log(
+                              user.users?.user_organizations?.[0]
+                                ?.user_roles?.[0]?.roles?.id || ""
+                            );
+                          }}
+                          disabled={rowLoadingStates[user.portalid]}
+                          sx={{ minWidth: 120 }}
+                        >
+                          {roles.map((role) => (
+                            <MenuItem key={role.id} value={role.id}>
+                              {role.name}
+                            </MenuItem>
+                          ))}
+                        </TextField>
                       </td>
                     </tr>
                   ))}
