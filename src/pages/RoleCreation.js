@@ -217,13 +217,28 @@ const RoleManagement = () => {
         </Button>
       </div>
 
-      <Table
+      {/* <Table
         columns={roleColumns}
         dataSource={roles}
         rowKey="id"
         bordered
         pagination={false}
-      />
+      /> */}
+
+      <div className="bg-white rounded-lg shadow">
+        <Table
+          columns={roleColumns}
+          dataSource={roles}
+          // loading={tableLoading}
+          rowKey="id"
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: false,
+            showQuickJumper: true,
+          }}
+          scroll={{ x: 800 }}
+        />
+      </div>
 
       <Modal
         title="Create New Role"
@@ -235,56 +250,57 @@ const RoleManagement = () => {
           setSuccessMsg("");
         }}
         footer={null}
-        destroyOnClose
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleCreateRole}
-          autoComplete="off"
-        >
-          <Form.Item
-            label="Role Name"
-            name="roleName"
-            rules={[{ required: true, message: "Role name is required" }]}
+        <div className="modal_outDiv">
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleCreateRole}
+            autoComplete="off"
           >
-            <Input placeholder="Enter role name" />
-          </Form.Item>
+            <Form.Item
+              label="Role Name"
+              name="roleName"
+              rules={[{ required: true, message: "Role name is required" }]}
+            >
+              <Input placeholder="Enter role name" />
+            </Form.Item>
 
-          <Form.Item
-            label="Role Description"
-            name="roleDescription"
-            rules={[
-              { required: true, message: "Role description is required" },
-            ]}
-          >
-            <Input placeholder="Enter role description" />
-          </Form.Item>
+            <Form.Item
+              label="Role Description"
+              name="roleDescription"
+              rules={[
+                { required: true, message: "Role description is required" },
+              ]}
+            >
+              <Input placeholder="Enter role description" />
+            </Form.Item>
 
-          {errorMsg && (
-            <Alert
-              message={errorMsg}
-              type="error"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-          )}
+            {errorMsg && (
+              <Alert
+                message={errorMsg}
+                type="error"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            )}
 
-          {successMsg && (
-            <Alert
-              message={successMsg}
-              type="success"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-          )}
+            {successMsg && (
+              <Alert
+                message={successMsg}
+                type="success"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            )}
 
-          <Form.Item>
-            <Button type="primary" htmlType="submit" block>
-              Save Role
-            </Button>
-          </Form.Item>
-        </Form>
+            <Form.Item>
+              <Button type="primary" htmlType="submit" block>
+                Save Role
+              </Button>
+            </Form.Item>
+          </Form>
+        </div>
       </Modal>
 
       <Modal

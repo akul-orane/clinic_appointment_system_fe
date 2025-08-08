@@ -1,461 +1,418 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { Box, Button as MuiButton } from "@mui/material";
 import {
-  Box,
-  TextField,
+  Table,
   Button,
-  MenuItem,
-  Typography,
+  Modal,
+  Form,
+  Input,
+  Select,
+  DatePicker,
+  message,
   Alert,
-} from "@mui/material";
+} from "antd";
+import { PlusOutlined } from "@ant-design/icons";
 import Sidebar from "../components/SideBar";
-import { Tabs, message } from "antd";
 import { BACKEND_URL } from "../assets/constants";
 
-const { TabPane } = Tabs;
+const { Option } = Select;
 
 const UserManagement = () => {
-  const [formData, setFormData] = useState({
-    roleId: "",
-    email: "",
-    first_name: "",
-    last_name: "",
-    gender: "",
-    dob: "",
-    address: "",
-    emergency_contact: "",
-    password: "",
-    phone: "",
-    login_id: "",
-  });
-
-  const [errors, setErrors] = useState({});
+  const [form] = Form.useForm();
   const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tableLoading, setTableLoading] = useState(false);
+  const [rowLoadingStates, setRowLoadingStates] = useState({});
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [successMsgNew, setSuccessMsgNew] = useState("");
-  const [errorMsgNew, setErrorMsgNew] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [rowLoadingStates, setRowLoadingStates] = useState({});
 
-  const [roles, setRoles] = useState([]);
   const orgId = localStorage.getItem("selectedOrgId");
   const token = localStorage.getItem("token");
+
   useEffect(() => {
-    const fetchRoles = async () => {
-      try {
-        const response = await axios.get(
-          `${BACKEND_URL}/clientAdmin/userMgmt/getRoles`,
-          {
-            params: {
-              orgId: orgId,
-            },
-
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        console.log("Role Response>>> ,", response.data.response);
-        setRoles(response.data.response); // assumes response is an array like [{ id: "admin", name: "Admin" }]
-      } catch (error) {
-        console.error("Failed to fetch roles:", error);
-      }
-    };
-
     fetchRoles();
+    fetchEmployeeDetails();
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setErrors((prev) => ({ ...prev, [name]: "" }));
-  };
-  const validate = () => {
-    const newErrors = {};
-    if (!formData.first_name) newErrors.first_name = "First Name is required";
-    if (!formData.roleId) newErrors.roleId = "Role is required";
-    if (!formData.gender) newErrors.gender = "Gender is required";
-    if (!formData.email) newErrors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(formData.email))
-      newErrors.email = "Email is invalid";
-
-    if (!formData.phone) newErrors.phone = "Phone is required";
-    else if (formData.phone.length !== 10)
-      newErrors.phone = "Phone must be 10 digits";
-
-    if (!formData.login_id) newErrors.login_id = "Login ID is required";
-    if (!formData.password) newErrors.password = "Password is required";
-
-    setErrors(newErrors);
-
-    return Object.keys(newErrors).length === 0;
+  const fetchRoles = async () => {
+    try {
+      const response = await axios.get(
+        `${BACKEND_URL}/clientAdmin/userMgmt/getRoles`,
+        {
+          params: { orgId: orgId },
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setRoles(response.data.response);
+    } catch (error) {
+      console.error("Failed to fetch roles:", error);
+    }
   };
 
-  const handleSubmit = async () => {
+  const fetchEmployeeDetails = async () => {
+    setTableLoading(true);
+    try {
+      const response = await axios.get(
+        `${BACKEND_URL}/clientAdmin/userMgmt/getEmployees?orgId=${orgId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (response.status === 200) {
+        setUsers(response.data.response || []);
+      } else {
+        message.error("Failed to fetch employees.");
+      }
+    } catch (err) {
+      console.error("Error fetching employees:", err);
+      message.error("Something went wrong while fetching employees.");
+    } finally {
+      setTableLoading(false);
+    }
+  };
+
+  const handleAddEmployee = () => {
+    setIsModalVisible(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+  };
+
+  const handleModalCancel = () => {
+    setIsModalVisible(false);
+    form.resetFields();
+    setErrorMsg("");
+    setSuccessMsg("");
+  };
+
+  const handleSubmit = async (values) => {
     setErrorMsg("");
     setSuccessMsg("");
     setIsSubmitting(true);
-    validate();
-    const isValid = validate();
-    if (!isValid) {
-      setIsSubmitting(false);
-      return;
-    }
 
     try {
-      const orgId = localStorage.getItem("selectedOrgId");
-      const token = localStorage.getItem("token");
       const response = await axios.post(
         `${BACKEND_URL}/clientAdmin/userMgmt/createEmployee`,
         {
-          roleId: formData.roleId,
-          emailId: formData.email,
-          firstName: formData.first_name,
-          lastName: formData.last_name,
-          DOB: new Date(formData.dob).toISOString(),
-          gender: formData.gender,
-          address: formData.address,
-          emergencyContact: formData.emergency_contact,
-          password: formData.password,
-          phone: formData.phone,
-          login_id: formData.login_id,
+          roleId: values.roleId,
+          emailId: values.email,
+          firstName: values.first_name,
+          lastName: values.last_name,
+          DOB: values.dob ? values.dob.toISOString() : null,
+          gender: values.gender,
+          address: values.address,
+          emergencyContact: values.emergency_contact,
+          password: values.password,
+          phone: values.phone,
+          login_id: values.login_id,
           orgId: orgId,
         },
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      if (response.status == 400) {
-        console.log("Invalid dataaa");
-        console.log(response);
-      }
-
       if (response.status === 201 || response.status === 200) {
-        setFormData({
-          roleId: "",
-          email: "",
-          first_name: "",
-          last_name: "",
-          gender: "",
-          dob: "",
-          address: "",
-          emergency_contact: "",
-          password: "",
-          phone: "",
-          login_id: "",
-        });
-
-        setErrors({});
-        setErrorMsg("");
-        setIsSubmitting(false);
+        form.resetFields();
+        setIsModalVisible(false);
         setSuccessMsg("Employee created successfully.");
         message.success("Employee added successfully.");
+        fetchEmployeeDetails(); // Refresh the table
       } else {
-        message.error("Failed to add role.");
+        message.error("Failed to add employee.");
       }
     } catch (error) {
-      setSuccessMsg("");
       if (error.response) {
-        setIsSubmitting(false);
         setErrorMsg(error.response.data.message);
-        //console.log("VALIDATION ERROR:", error.response.data);
       }
       console.error("API Error:", error);
-
       message.error(
         error.response?.data?.message ||
           "Something went wrong. Please try again."
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleRoleChange = async (userId, newRoleId) => {
-    setErrorMsgNew("");
-    setSuccessMsgNew("");
     setRowLoadingStates((prev) => ({ ...prev, [userId]: true }));
     try {
       await axios.put(
         `${BACKEND_URL}/clientAdmin/userMgmt/updateUserRole`,
         {
-          userId, // WHO to update
-          newRoleId, // WHAT role to assign
-          orgId: orgId, // Optional, if your backend requires it
+          userId,
+          newRoleId,
+          orgId: orgId,
         },
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      await fetchEmployeeDetails(); // refresh UI
-      setSuccessMsgNew("Role Updated");
+      await fetchEmployeeDetails();
+      message.success("Role updated successfully.");
     } catch (error) {
       console.error("Role update failed:", error);
-      setErrorMsgNew("Failed to update role");
+      message.error("Failed to update role");
     } finally {
       setRowLoadingStates((prev) => ({ ...prev, [userId]: false }));
     }
   };
 
-  const fetchEmployeeDetails = async () => {
-    try {
-      const orgId = localStorage.getItem("selectedOrgId");
-      const token = localStorage.getItem("token");
-      const response = await axios.get(
-        `${BACKEND_URL}/clientAdmin/userMgmt/getEmployees?orgId=${orgId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      console.log("Employee resposne>>>", response.data.response);
-      if (response.status === 200) {
-        setUsers(response.data.response || []);
-      } else {
-        message.error("Failed to fetch roles.");
-      }
-    } catch (err) {
-      console.error("Error fetching roles:", err);
-      message.error("Something went wrong while fetching roles.");
-    }
-  };
+  const columns = [
+    {
+      title: "ID",
+      dataIndex: "portalid",
+      key: "portalid",
+      width: 80,
+    },
+    {
+      title: "Name",
+      dataIndex: "first_name",
+      key: "first_name",
+      width: 150,
+    },
+    {
+      title: "Email",
+      dataIndex: "email",
+      key: "email",
+      width: 200,
+    },
+    {
+      title: "Phone",
+      dataIndex: "phone",
+      key: "phone",
+      width: 120,
+    },
+    {
+      title: "Login ID",
+      key: "login_id",
+      width: 150,
+      render: (_, record) => record.users?.login_id || "-",
+    },
+    {
+      title: "Change Role",
+      key: "role",
+      width: 180,
+      render: (_, record) => (
+        <Select
+          size="small"
+          value={
+            record.users?.user_organizations?.[0]?.user_roles?.[0]?.roles?.id ||
+            ""
+          }
+          onChange={(value) => handleRoleChange(record.userid, value)}
+          loading={rowLoadingStates[record.portalid]}
+          style={{ minWidth: 120 }}
+        >
+          {roles.map((role) => (
+            <Option key={role.id} value={role.id}>
+              {role.name}
+            </Option>
+          ))}
+        </Select>
+      ),
+    },
+  ];
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", background: "#f4f9ff" }}>
       <div className="flex-1 p-6 sm:p-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-blue-900 mb-6">
-          Employee Management
-        </h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-blue-900">
+            Employee Management
+          </h1>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleAddEmployee}
+            size="large"
+          >
+            Add Employee
+          </Button>
+        </div>
 
-        <Tabs
-          defaultActiveKey="1"
-          onChange={(activeKey) => {
-            if (activeKey === "2") {
-              setErrorMsgNew("");
-              setSuccessMsgNew("");
-              fetchEmployeeDetails();
-            }
-            if (activeKey == "1") {
-              setErrorMsg("");
-              setSuccessMsg("");
-            }
-          }}
+        {successMsg && (
+          <Alert
+            message={successMsg}
+            type="success"
+            showIcon
+            closable
+            className="mb-4"
+            onClose={() => setSuccessMsg("")}
+          />
+        )}
+
+        {errorMsg && (
+          <Alert
+            message={errorMsg}
+            type="error"
+            showIcon
+            closable
+            className="mb-4"
+            onClose={() => setErrorMsg("")}
+          />
+        )}
+
+        <div className="bg-white rounded-lg shadow">
+          <Table
+            columns={columns}
+            dataSource={users}
+            loading={tableLoading}
+            rowKey="portalid"
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: false,
+              showQuickJumper: true,
+            }}
+            scroll={{ x: 800 }}
+          />
+        </div>
+
+        <Modal
+          title="Add New Employee"
+          open={isModalVisible}
+          onCancel={handleModalCancel}
+          footer={null}
+          width={800}
         >
-          <TabPane tab="Create Employee" key="1">
-            <div className="bg-white p-4 sm:p-6 rounded-xl shadow max-w-5xl">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TextField
-                  label="First Name *"
+          <div className="modal_outDiv">
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleSubmit}
+              autoComplete="off"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Form.Item
+                  label="First Name"
                   name="first_name"
-                  value={formData.first_name}
-                  onChange={handleChange}
-                  error={!!errors.first_name}
-                  helperText={errors.first_name}
-                  fullWidth
-                />
-
-                <TextField
-                  label="Last Name"
-                  name="last_name"
-                  value={formData.last_name}
-                  onChange={handleChange}
-                  //fullWidth
-                />
-                <div className="flex flex-row gap-4">
-                  <TextField
-                    select
-                    label="Role *"
-                    name="roleId"
-                    value={formData.roleId}
-                    onChange={handleChange}
-                    error={!!errors.roleId}
-                    helperText={errors.roleId}
-                    //fullWidth
-                    sx={{ width: 225 }}
-                  >
-                    {roles.map((role) => (
-                      <MenuItem key={role.id} value={role.id}>
-                        {role.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  <TextField
-                    select
-                    label="Gender *"
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleChange}
-                    error={!!errors.gender}
-                    helperText={errors.gender}
-                    //fullWidth
-                    sx={{ width: 225 }}
-                  >
-                    <MenuItem value="Male">Male</MenuItem>
-                    <MenuItem value="Female">Female</MenuItem>
-                    <MenuItem value="Other">Other</MenuItem>
-                  </TextField>
-                </div>
-
-                <TextField
-                  label="Email *"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  error={!!errors.email}
-                  helperText={errors.email}
-                  fullWidth
-                />
-
-                <TextField
-                  label="Phone *"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  error={!!errors.phone}
-                  helperText={errors.phone}
-                  fullWidth
-                />
-
-                <TextField
-                  type="date"
-                  label="Date of Birth"
-                  name="dob"
-                  value={formData.dob}
-                  onChange={handleChange}
-                  InputLabelProps={{ shrink: true }}
-                  fullWidth
-                />
-
-                <TextField
-                  label="Login ID *"
-                  name="login_id"
-                  value={formData.login_id}
-                  onChange={handleChange}
-                  error={!!errors.login_id}
-                  helperText={errors.login_id}
-                  fullWidth
-                />
-
-                <TextField
-                  label="Password *"
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  error={!!errors.password}
-                  helperText={errors.password}
-                  fullWidth
-                />
-                <TextField
-                  label="Address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  fullWidth
-                />
-                <TextField
-                  label="Emergency Contact"
-                  name="emergency_contact"
-                  value={formData.emergency_contact}
-                  onChange={handleChange}
-                  fullWidth
-                />
-              </div>
-              {errorMsg && (
-                <Alert sx={{ mb: 2, mt: 2 }} severity="error">
-                  {errorMsg}
-                </Alert>
-              )}
-              {successMsg && (
-                <Alert sx={{ mb: 2, mt: 2 }} severity="success">
-                  {successMsg}
-                </Alert>
-              )}
-
-              <div className="mt-6">
-                <Button
-                  variant="contained"
-                  color="primary"
-                  disabled={isSubmitting}
-                  onClick={handleSubmit}
+                  rules={[
+                    { required: true, message: "Please enter first name!" },
+                  ]}
                 >
-                  {isSubmitting ? "Saving..." : "Save User"}
+                  <Input placeholder="Enter first name" />
+                </Form.Item>
+
+                <Form.Item label="Last Name" name="last_name">
+                  <Input placeholder="Enter last name" />
+                </Form.Item>
+
+                <Form.Item
+                  label="Role"
+                  name="roleId"
+                  rules={[{ required: true, message: "Please select a role!" }]}
+                >
+                  <Select placeholder="Select role">
+                    {roles.map((role) => (
+                      <Option key={role.id} value={role.id}>
+                        {role.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+
+                <Form.Item
+                  label="Gender"
+                  name="gender"
+                  rules={[{ required: true, message: "Please select gender!" }]}
+                >
+                  <Select placeholder="Select gender">
+                    <Option value="Male">Male</Option>
+                    <Option value="Female">Female</Option>
+                    <Option value="Other">Other</Option>
+                  </Select>
+                </Form.Item>
+
+                <Form.Item
+                  label="Email"
+                  name="email"
+                  rules={[
+                    { required: true, message: "Please enter email!" },
+                    { type: "email", message: "Please enter a valid email!" },
+                  ]}
+                >
+                  <Input placeholder="Enter email" />
+                </Form.Item>
+
+                <Form.Item
+                  label="Phone"
+                  name="phone"
+                  rules={[
+                    { required: true, message: "Please enter phone number!" },
+                    { len: 10, message: "Phone number must be 10 digits!" },
+                  ]}
+                >
+                  <Input placeholder="Enter phone number" maxLength={10} />
+                </Form.Item>
+
+                <Form.Item label="Date of Birth" name="dob">
+                  <DatePicker style={{ width: "100%" }} />
+                </Form.Item>
+
+                <Form.Item
+                  label="Login ID"
+                  name="login_id"
+                  rules={[
+                    { required: true, message: "Please enter login ID!" },
+                  ]}
+                >
+                  <Input placeholder="Enter login ID" />
+                </Form.Item>
+
+                <Form.Item
+                  label="Password"
+                  name="password"
+                  rules={[
+                    { required: true, message: "Please enter password!" },
+                    {
+                      min: 6,
+                      message: "Password must be at least 6 characters!",
+                    },
+                  ]}
+                >
+                  <Input.Password placeholder="Enter password" />
+                </Form.Item>
+
+                <Form.Item label="Address" name="address">
+                  <Input placeholder="Enter address" />
+                </Form.Item>
+
+                <Form.Item label="Emergency Contact" name="emergency_contact">
+                  <Input placeholder="Enter emergency contact" />
+                </Form.Item>
+              </div>
+
+              {errorMsg && (
+                <Alert
+                  message={errorMsg}
+                  type="error"
+                  showIcon
+                  className="mb-4"
+                />
+              )}
+
+              {successMsg && (
+                <Alert
+                  message={successMsg}
+                  type="success"
+                  showIcon
+                  className="mb-4"
+                />
+              )}
+
+              <div className="flex justify-end gap-2 mt-6">
+                <Button onClick={handleModalCancel}>Cancel</Button>
+                <Button type="primary" htmlType="submit" loading={isSubmitting}>
+                  {isSubmitting ? "Creating..." : "Create Employee"}
                 </Button>
               </div>
-            </div>
-          </TabPane>
-
-          <TabPane tab="Employee Listing" key="2">
-            {errorMsgNew && (
-              <Alert sx={{ mb: 2, mt: 2 }} severity="error">
-                {errorMsgNew}
-              </Alert>
-            )}
-            {successMsgNew && (
-              <Alert sx={{ mb: 2, mt: 2 }} severity="success">
-                {successMsgNew}
-              </Alert>
-            )}
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden mt-4">
-              <table className="table-fixed w-full text-sm text-left">
-                <thead className="bg-blue-100 text-blue-900 font-semibold">
-                  <tr>
-                    <th className="w-24 px-4 py-2 border-b">Id</th>
-                    <th className="w-40 px-4 py-2 border-b">Name</th>
-                    <th className="w-60 px-4 py-2 border-b">Email</th>
-                    <th className="w-36 px-4 py-2 border-b">Phone</th>
-                    <th className="w-48 px-4 py-2 border-b">Login ID</th>
-                    <th className="w-48 px-4 py-2 border-b">Change Role</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user, index) => (
-                    <tr key={index} className="border-t">
-                      <td className="px-4 py-2">{user.portalid}</td>
-                      <td className="px-4 py-2">{user.first_name}</td>
-                      <td className="px-4 py-2">{user.email}</td>
-                      <td className="px-4 py-2">{user.phone}</td>
-                      <td className="px-4 py-2">
-                        {user.users?.login_id || "-"}
-                      </td>
-                      <td className="px-4 py-2">
-                        <TextField
-                          select
-                          size="small"
-                          value={
-                            user.users?.user_organizations?.[0]?.user_roles?.[0]
-                              ?.roles?.id || ""
-                          }
-                          onChange={(e) => {
-                            handleRoleChange(user.userid, e.target.value);
-                            console.log(
-                              user.users?.user_organizations?.[0]
-                                ?.user_roles?.[0]?.roles?.id || ""
-                            );
-                          }}
-                          disabled={rowLoadingStates[user.portalid]}
-                          sx={{ minWidth: 120 }}
-                        >
-                          {roles.map((role) => (
-                            <MenuItem key={role.id} value={role.id}>
-                              {role.name}
-                            </MenuItem>
-                          ))}
-                        </TextField>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </TabPane>
-        </Tabs>
+            </Form>
+          </div>
+        </Modal>
       </div>
     </Box>
   );

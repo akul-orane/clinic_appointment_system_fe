@@ -1,24 +1,39 @@
 import React, { useEffect, useState } from "react";
-import { Table, Button, Modal, Input, message, Popconfirm } from "antd";
+import {
+  Table,
+  Button,
+  Modal,
+  Form,
+  Input,
+  message,
+  Popconfirm,
+  Alert,
+  Tag,
+  Space,
+} from "antd";
+import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import axios from "axios";
-import { Box, Alert, Typography } from "@mui/material";
+import { Box } from "@mui/material";
 import { BACKEND_URL } from "../assets/constants";
 
 const ResourceManagement = () => {
+  const [form] = Form.useForm();
   const [resources, setResources] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [newResource, setNewResource] = useState("");
   const [loading, setLoading] = useState(false);
+  const [tableLoading, setTableLoading] = useState(false);
   const [loadingResourceId, setLoadingResourceId] = useState(null);
-  const [errorMsg, seterrorMsg] = React.useState("");
+  const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [editingResource, setEditingResource] = useState(null);
 
   const token = localStorage.getItem("token");
+  const orgId = localStorage.getItem("selectedOrgId");
 
   const fetchResources = async () => {
+    setTableLoading(true);
     try {
-      const orgId = localStorage.getItem("selectedOrgId");
-      const res = await axios.get(
+      const response = await axios.get(
         `${BACKEND_URL}/clientadmin/resourceManagement/getResources?orgId=${orgId}`,
         {
           headers: {
@@ -26,10 +41,12 @@ const ResourceManagement = () => {
           },
         }
       );
-      console.log("resources>> ", res);
-      setResources(res.data.response);
+      setResources(response.data.response || []);
     } catch (err) {
+      console.error("Error fetching resources:", err);
       message.error("Failed to fetch resources");
+    } finally {
+      setTableLoading(false);
     }
   };
 
@@ -37,69 +54,212 @@ const ResourceManagement = () => {
     fetchResources();
   }, []);
 
-  const handleAdd = async () => {
-    if (!newResource.trim()) {
-      message.warning("Resource name is required");
-      return;
-    }
-    const orgId = localStorage.getItem("selectedOrgId");
+  const handleAddResource = () => {
+    setEditingResource(null);
+    form.resetFields();
+    setIsModalVisible(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+  };
+
+  const handleEditResource = (resource) => {
+    setEditingResource(resource);
+    form.setFieldsValue({
+      name: resource.name,
+    });
+    setIsModalVisible(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+  };
+
+  const handleModalCancel = () => {
+    setIsModalVisible(false);
+    form.resetFields();
+    setEditingResource(null);
+    setErrorMsg("");
+    setSuccessMsg("");
+  };
+
+  const handleSubmit = async (values) => {
+    setErrorMsg("");
+    setSuccessMsg("");
+    setLoading(true);
 
     try {
-      setLoading(true);
-      await axios.post(
-        `${BACKEND_URL}/clientadmin/resourceManagement/createResource`,
-        { resourceName: newResource, orgId },
+      if (editingResource) {
+        // Update existing resource (assuming API endpoint exists)
+        await axios.put(
+          `${BACKEND_URL}/clientadmin/resourceManagement/updateResource`,
+          {
+            id: editingResource.id,
+            resourceName: values.name,
+            orgId: orgId,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        message.success("Resource updated successfully");
+        setSuccessMsg("Resource updated successfully");
+      } else {
+        // Create new resource
+        await axios.post(
+          `${BACKEND_URL}/clientadmin/resourceManagement/createResource`,
+          {
+            resourceName: values.name,
+            orgId: orgId,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        message.success("Resource added successfully");
+        setSuccessMsg("Resource added successfully");
+      }
+
+      setIsModalVisible(false);
+      form.resetFields();
+      setEditingResource(null);
+      fetchResources();
+    } catch (err) {
+      const errorMessage = editingResource
+        ? "Failed to update resource"
+        : "Failed to add resource";
+      setErrorMsg(errorMessage);
+      message.error(errorMessage);
+      console.error("API Error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      setLoadingResourceId(id);
+      await axios.patch(
+        `${BACKEND_URL}/clientadmin/resourceManagement/updateResources?id=${id}`,
+        { status: newStatus },
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         }
       );
-      message.success("Resource added successfully");
-      setIsModalVisible(false);
-      setNewResource("");
-      seterrorMsg("");
-      setSuccessMsg("Resource Added Successfully");
+      message.success("Status updated successfully");
+      setSuccessMsg("Status updated successfully");
+      setErrorMsg("");
       fetchResources();
     } catch (err) {
-      seterrorMsg("Failed to add resource");
+      setErrorMsg("Failed to update status");
       setSuccessMsg("");
-      message.error("Failed to add resource");
+      message.error("Failed to update status");
+      console.error("Status update error:", err);
     } finally {
-      setLoading(false);
+      setLoadingResourceId(null);
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteResource = async (id) => {
     try {
-      await axios.delete(`/api/resources/${id}`); // Replace with your actual endpoint
-      message.success("Resource deleted");
+      setLoadingResourceId(id);
+      // Update this endpoint when the actual delete API is available
+      await axios.delete(
+        `${BACKEND_URL}/clientadmin/resourceManagement/deleteResource?id=${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      message.success("Resource deleted successfully");
+      setSuccessMsg("Resource deleted successfully");
+      setErrorMsg("");
       fetchResources();
     } catch (err) {
+      setErrorMsg("Failed to delete resource");
+      setSuccessMsg("");
       message.error("Failed to delete resource");
+      console.error("Delete error:", err);
+    } finally {
+      setLoadingResourceId(null);
     }
   };
 
   const columns = [
     {
+      title: "ID",
+      dataIndex: "portal_id",
+      key: "portal_id",
+      // sorter: (a, b) => a.portal_id - b.portal_id,
+    },
+    {
       title: "Resource Name",
       dataIndex: "name",
       key: "name",
+      // sorter: (a, b) => a.name.localeCompare(b.name),
     },
     {
-      title: "Action",
-      key: "action",
-      render: (_, record) => (
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      render: (status, record) => (
         <Popconfirm
-          title="Are you sure to delete this resource?"
-          onConfirm={() => handleDelete(record.id)}
+          title={`Are you sure you want to ${
+            status === "ENABLED" ? "disable" : "enable"
+          } this resource?`}
+          onConfirm={() =>
+            handleStatusChange(
+              record.id,
+              status === "ENABLED" ? "DISABLED" : "ENABLED"
+            )
+          }
           okText="Yes"
           cancelText="No"
         >
-          <Button danger size="small">
-            Delete
-          </Button>
+          <Tag
+            color={status === "ENABLED" ? "green" : "red"}
+            style={{ cursor: "pointer" }}
+            loading={loadingResourceId === record.id}
+          >
+            {status || "ENABLED"}
+          </Tag>
         </Popconfirm>
+      ),
+    },
+    {
+      title: "Actions",
+      key: "actions",
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            type="link"
+            icon={<EditOutlined />}
+            onClick={() => handleEditResource(record)}
+            size="small"
+          >
+            Edit
+          </Button>
+          <Popconfirm
+            title="Are you sure you want to delete this resource?"
+            onConfirm={() => handleDeleteResource(record.id)}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Button
+              type="link"
+              danger
+              icon={<DeleteOutlined />}
+              loading={loadingResourceId === record.id}
+              size="small"
+            >
+              Delete
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
@@ -109,107 +269,122 @@ const ResourceManagement = () => {
       sx={{
         display: "flex",
         minHeight: "100vh",
-        background: "linear-gradient(to right, #e6f0ff, #f8fbff)",
+        background: "#f4f9ff",
       }}
     >
-      <div style={{ padding: 24 }}>
-        <Typography
-          variant="h4"
-          sx={{ color: "#0047ab", fontWeight: "bold", mb: 4 }}
-        >
-          Resource Management
-        </Typography>
-        <Button
-          type="primary"
-          onClick={() => setIsModalVisible(true)}
-          style={{ marginBottom: 16 }}
-        >
-          Add Resource
-        </Button>
-        {errorMsg && (
-          <Alert sx={{ mb: 2, mt: 2 }} severity="error">
-            {errorMsg}
-          </Alert>
-        )}
+      <div className="flex-1 p-6 sm:p-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-blue-900">
+            Resource Management
+          </h1>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleAddResource}
+            size="large"
+          >
+            Add Resource
+          </Button>
+        </div>
+
         {successMsg && (
-          <Alert sx={{ mb: 2, mt: 2 }} severity="success">
-            {successMsg}
-          </Alert>
+          <Alert
+            message={successMsg}
+            type="success"
+            showIcon
+            closable
+            className="mb-4"
+            onClose={() => setSuccessMsg("")}
+          />
         )}
 
-        <table className="table-fixed w-full text-sm text-left">
-          <thead className="bg-blue-100 text-blue-900 font-semibold">
-            <tr>
-              <th className="w-24 px-4 py-2 border-b">Id</th>
-              <th className="w-40 px-4 py-2 border-b">Name</th>
+        {errorMsg && (
+          <Alert
+            message={errorMsg}
+            type="error"
+            showIcon
+            closable
+            className="mb-4"
+            onClose={() => setErrorMsg("")}
+          />
+        )}
 
-              <th className="w-32 px-4 py-2 border-b">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {resources.map((resource, index) => (
-              <tr key={index} className="border-t">
-                <td className="px-4 py-2">{resource.portal_id}</td>
-                <td className="px-4 py-2">{resource.name}</td>
-
-                <td className="px-4 py-2">
-                  <select
-                    value={resource.status}
-                    onChange={async (e) => {
-                      const updatedStatus = e.target.value;
-                      setLoadingResourceId(resource.id);
-                      try {
-                        await axios.patch(
-                          `${BACKEND_URL}/clientadmin/resourceManagement/updateResources?id=${resource.id}`,
-                          {
-                            status: updatedStatus,
-                          },
-                          {
-                            headers: {
-                              Authorization: `Bearer ${token}`,
-                            },
-                          }
-                        );
-                        message.success("Status updated");
-                        seterrorMsg("");
-                        setSuccessMsg("Status Updated");
-                        await fetchResources(); // refresh the list once
-                      } catch (err) {
-                        seterrorMsg("Failed to update status");
-                        setSuccessMsg("");
-                        message.error("Failed to update status");
-                      } finally {
-                        setLoadingResourceId(null); // stop loading
-                      }
-                    }}
-                    disabled={loadingResourceId === resource.id}
-                    className={`px-2 py-1 border rounded text-sm ${
-                      loadingResourceId === resource.id
-                        ? "opacity-50 cursor-not-allowed"
-                        : ""
-                    }`}
-                  >
-                    <option value="ENABLED">ENABLED</option>
-                    <option value="DISABLED">DISABLED</option>
-                  </select>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="bg-white rounded-lg shadow">
+          <Table
+            columns={columns}
+            dataSource={resources}
+            loading={tableLoading}
+            rowKey="id"
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: false,
+              showQuickJumper: true,
+            }}
+            scroll={{ x: 600 }}
+          />
+        </div>
 
         <Modal
-          title="Add New Resource"
+          title={editingResource ? "Edit Resource" : "Add New Resource"}
           open={isModalVisible}
-          onCancel={() => setIsModalVisible(false)}
-          onOk={handleAdd}
-          confirmLoading={loading}
+          onCancel={handleModalCancel}
+          footer={null}
+          width={500}
+          destroyOnClose
         >
-          <Input
-            placeholder="Enter resource name"
-            value={newResource}
-            onChange={(e) => setNewResource(e.target.value)}
-          />
+          <div className="modal_outDiv">
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleSubmit}
+              autoComplete="off"
+            >
+              <Form.Item
+                label="Resource Name"
+                name="name"
+                rules={[
+                  { required: true, message: "Please enter resource name!" },
+                  {
+                    min: 2,
+                    message: "Resource name must be at least 2 characters!",
+                  },
+                ]}
+              >
+                <Input placeholder="Enter resource name" />
+              </Form.Item>
+
+              {errorMsg && (
+                <Alert
+                  message={errorMsg}
+                  type="error"
+                  showIcon
+                  className="mb-4"
+                />
+              )}
+
+              {successMsg && (
+                <Alert
+                  message={successMsg}
+                  type="success"
+                  showIcon
+                  className="mb-4"
+                />
+              )}
+
+              <div className="flex justify-end gap-2 mt-6">
+                <Button onClick={handleModalCancel}>Cancel</Button>
+                <Button type="primary" htmlType="submit" loading={loading}>
+                  {loading
+                    ? editingResource
+                      ? "Updating..."
+                      : "Creating..."
+                    : editingResource
+                    ? "Update Resource"
+                    : "Create Resource"}
+                </Button>
+              </div>
+            </Form>
+          </div>
         </Modal>
       </div>
     </Box>

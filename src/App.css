@@ -7,8 +7,22 @@ body {
   box-sizing: border-box;
 }
 
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 .pageCss {
   padding: 2rem;
+}
+
+.modal_outDiv {
+  max-height: 70vh !important;
+  overflow-y: auto !important;
 }
 
 /* Button hover transition (optional) */

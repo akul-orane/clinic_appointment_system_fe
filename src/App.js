@@ -25,6 +25,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import "../src/App.css";
 import { message } from "antd";
 import Settings from "./pages/settings/Settings";
+import ClientManagement from "./pages/ClientManagement";
 
 function App() {
   // const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -50,8 +51,8 @@ function App() {
       ) : isLoggedIn ? (
         <Route element={<LoggedInLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/registerClient" element={<ClientRegistration />} />
-          <Route path="/clients" element={<ClientTable />} />
+          {/* <Route path="/registerClient" element={<ClientRegistration />} /> */}
+          <Route path="/clients" element={<ClientManagement />} />
           <Route path="/roleManagement" element={<RoleManagement />} />
           <Route path="/employeeManagement" element={<UserMgmt />} />
           <Route path="/doctorManagement" element={<DoctorManagement />} />
